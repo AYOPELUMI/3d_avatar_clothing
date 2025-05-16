@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
     Box,
     Button,
@@ -7,10 +7,9 @@ import {
     FormControlLabel,
     Divider,
     CircularProgress,
-    TextField,
-    InputAdornment,
 } from '@mui/material';
-import ColorPicker from 'mui-color-picker'
+import { HexColorPicker } from 'react-colorful';
+import { Popover } from '@mui/material';
 import ModelUploader from './modelUploader';
 import { useAppContext } from '../context/appContext';
 
@@ -26,12 +25,24 @@ const ControlPanel = () => {
         setAvatar,
         setClothing,
     } = useAppContext();
-    const [colorPickerOpen, setColorPickerOpen] = useState(false);
+
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+    const colorButtonRef = useRef<HTMLButtonElement>(null);
+
+    const handleColorButtonClick = (event: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(event.currentTarget);
+    };
+
+    const handleColorPickerClose = () => {
+        setAnchorEl(null);
+    };
 
     const handleReset = () => {
         setAvatar(null);
         setClothing(null);
     };
+
+    const colorPickerOpen = Boolean(anchorEl);
 
     return (
         <Box
@@ -82,21 +93,48 @@ const ControlPanel = () => {
             <Box sx={{ mt: 2 }}>
                 <Button
                     variant="outlined"
-                    onClick={() => setColorPickerOpen(true)}
+                    onClick={handleColorButtonClick}
                     disabled={!clothing}
                     fullWidth
+                    sx={{ mb: 2 }}
+                    ref={colorButtonRef}
                 >
                     Change Clothing Color
+                    <div style={{
+                        width: 20,
+                        height: 20,
+                        backgroundColor: clothingColor,
+                        marginLeft: 10,
+                        border: '1px solid #ccc'
+                    }} />
                 </Button>
 
-                {colorPickerOpen && (
-                    <ColorPicker
-                        open={colorPickerOpen}
-                        onClose={() => setColorPickerOpen(false)}
-                        value={clothingColor}
-                        onChange={(newValue) => setClothingColor(newValue)}
-                    />
-                )}
+                <Popover
+                    open={colorPickerOpen}
+                    anchorEl={anchorEl}
+                    onClose={handleColorPickerClose}
+                    anchorOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'center',
+                    }}
+                    transformOrigin={{
+                        vertical: 'top',
+                        horizontal: 'center',
+                    }}
+                >
+                    <Box sx={{ p: 2 }}>
+                        <HexColorPicker color={clothingColor} onChange={setClothingColor} />
+                        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                            <Button
+                                variant="contained"
+                                onClick={handleColorPickerClose}
+                                size="small"
+                            >
+                                Apply
+                            </Button>
+                        </Box>
+                    </Box>
+                </Popover>
             </Box>
 
             <Divider sx={{ my: 2 }} />
