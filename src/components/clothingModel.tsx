@@ -1,7 +1,7 @@
 import { useGLTF } from "@react-three/drei";
 import { useEffect, useMemo, useRef } from "react";
 import { useBox } from "@react-three/cannon";
-import { Group, Color, Box3, Vector3, Object3D, Mesh } from "three";
+import { Color, Box3, Vector3, Object3D, Mesh } from "three";
 
 export function ClothingModel({
     url,
@@ -67,20 +67,18 @@ export function ClothingModel({
         clothingBox.getCenter(clothingCenter);
 
         // Position adjustment
-        const position = [
-            0,
-            avatarCenter.y - clothingCenter.y * scaleFactor,
-            0
-        ];
+        const posX = 0;
+        const posY = avatarCenter.y - clothingCenter.y * scaleFactor;
+        const posZ = 0;
 
         // Apply transformations
-        clothing.position.set(...position);
-        api.position.set(...position);
-        clothingRef.current.position.set(...position);
+        clothing.position.set(posX, posY, posZ);
+        api.position.set(posX, posY, posZ);
+        clothingRef.current.position.set(posX, posY, posZ);
 
         // Apply color with better material handling
         clothing.traverse((child) => {
-            if (child.isMesh) {
+            if (child instanceof Mesh) {
                 child.material = child.material.clone();
                 child.material.color = new Color(color);
                 child.material.needsUpdate = true;
@@ -88,7 +86,6 @@ export function ClothingModel({
         });
 
     }, [clothing, avatar, color, api]);
-
     if (!clothing) return null;
 
     return (

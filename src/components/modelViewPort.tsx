@@ -19,7 +19,6 @@ export function ModelViewport({
     clothingUrl,
     showClothing,
     clothingColor,
-    isLoading,
     sx
 }: ModelViewportProps & { sx?: SxProps<Theme> }) {
     const [isDragging, setIsDragging] = useState(false);
