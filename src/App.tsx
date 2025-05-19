@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ThemeProvider } from "@mui/material/styles";
 import { Container, Typography, Box } from "@mui/material";
 import { theme } from "./theme";
