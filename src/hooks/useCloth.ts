@@ -1,23 +1,22 @@
-// useCloth.ts
 import { useRef, useEffect } from 'react'
-import { Vector3, Object3D, Mesh } from 'three'
-import { useSphere } from '@react-three/cannon'
+import { Vector3, Mesh, BufferGeometry, BufferAttribute, Object3D } from 'three'
 
-interface UseClothParams {
-  model: Object3D
-  bodyModel: Object3D  // Now properly used
-  options: {
-    width: number
-    height: number
-    segments: number
-    stiffness: number
-  }
+interface UseClothOptions {
+  segments?: number
+  stiffness?: number
+  collisionMargin?: number
+  femaleBody?: boolean
+  bodyInfluence?: number
 }
 
-export function useCloth({ model, bodyModel, options }: {
-  model: Object3D | null
-  bodyModel: Object3D
-  options: { segments: number; stiffness: number }
+export function useCloth({
+  model,
+  bodyModel,
+  options
+}: {
+  model: Object3D | null,
+  bodyModel: Object3D | null,
+  options: UseClothOptions
 }) {
   const clothParticles = useRef<Vector3[]>([])
   const constraints = useRef<any[]>([])
@@ -28,7 +27,14 @@ export function useCloth({ model, bodyModel, options }: {
     const mesh = model.children[0] as Mesh
     if (!mesh?.isMesh || !mesh.geometry) return
 
-    const geometry = mesh.geometry
+    const geometry = mesh.geometry as BufferGeometry
+
+    // Check if position attribute exists and is a BufferAttribute
+    if (!geometry.attributes.position || !(geometry.attributes.position instanceof BufferAttribute)) {
+      console.warn('Mesh geometry does not contain valid position attributes')
+      return
+    }
+
     const positions = geometry.attributes.position.array
     const particles: Vector3[] = []
 

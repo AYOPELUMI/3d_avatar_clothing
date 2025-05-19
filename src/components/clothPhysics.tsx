@@ -1,10 +1,8 @@
 import { useRef, useEffect, useState, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Group, Object3D, Mesh, Color, BufferGeometry, Vector3, Box3 } from 'three'
+import { Group, Object3D, Mesh, Color, BufferGeometry, Vector3, Box3, Material, MeshStandardMaterial, BufferAttribute } from 'three'
 import { useBox, usePlane } from '@react-three/cannon'
 import { useCloth } from '../hooks/useCloth'
-import { detectFemaleBody } from '../hooks/detectFemaleBody'
-import { getBodyVertices } from '../hooks/getBodyVertice'
 
 interface ClothPhysicsProps {
     clothingScene: Object3D
@@ -14,6 +12,8 @@ interface ClothPhysicsProps {
 
 export function ClothPhysics({ clothingScene, avatarScene, color }: ClothPhysicsProps) {
     const groupRef = useRef<Group>(null)
+    const [clothReady, setClothReady] = useState(false)
+
 
 
     const scaledClothingScene = useMemo(() => {
@@ -30,43 +30,44 @@ export function ClothPhysics({ clothingScene, avatarScene, color }: ClothPhysics
         clothingBox.getSize(clothingSize);
         const baseScale = avatarSize.y / clothingSize.y;
 
-        // Detect female body proportions
-        const isFemale = detectFemaleBody(avatarScene); // Implementation below
-
-        // Apply automatic gender-aware scaling
+        // Apply zone-specific scaling
         clone.traverse((child) => {
-            if (child.isMesh) {
-                let areaScale = 1.0;
-                const childName = child.name.toLowerCase();
+            if ((child as Mesh).isMesh) {
+                // Default scaling
+                child.scale.set(baseScale, baseScale, baseScale);
 
-                // Chest area expansion for female avatars
-                if (isFemale && (childName.includes('chest') || childName.includes('torso'))) {
-                    areaScale = 1.15; // 15% larger for bust
+                // Area-specific adjustments
+                if (child.name.toLowerCase().includes('chest') ||
+                    child.name.toLowerCase().includes('torso')) {
+                    // Expand chest/torso area
+                    child.scale.multiplyScalar(1.1);
                 }
-
-                // Hip/buttocks area expansion
-                if (isFemale && (childName.includes('hip') || childName.includes('butt') || childName.includes('seat'))) {
-                    areaScale = 1.12; // 12% larger for hips
+                if (child.name.toLowerCase().includes('sleeve') ||
+                    child.name.toLowerCase().includes('arm')) {
+                    // Expand arms slightly
+                    child.scale.multiplyScalar(1.05);
                 }
-
-                // Apply scaling with padding to prevent clipping
-                child.scale.set(
-                    baseScale * areaScale * 1.05, // 5% padding
-                    baseScale * areaScale * 1.05,
-                    baseScale * areaScale * 1.05
-                );
+                if (child.name.toLowerCase().includes('collar') ||
+                    child.name.toLowerCase().includes('neck')) {
+                    // Tighten neck area
+                    child.scale.multiplyScalar(0.95);
+                }
             }
         });
 
-        // Position adjustment with extra clearance
+        // Position adjustment
         const avatarFeetY = avatarBox.min.y;
         const clothingFeetY = new Box3().setFromObject(clone).min.y;
-        clone.position.y = avatarFeetY - clothingFeetY + 0.05; // Increased lift
+        clone.position.y = avatarFeetY - clothingFeetY + 0.02; // Slight lift
 
         return clone;
     }, [clothingScene, avatarScene]);
 
     // 2. Apply color to clothing material
+
+    function isColorMaterial(material: Material): material is MeshStandardMaterial {
+        return 'color' in material;
+    }
     useEffect(() => {
         if (!scaledClothingScene) return
 
@@ -75,27 +76,30 @@ export function ClothPhysics({ clothingScene, avatarScene, color }: ClothPhysics
                 const mesh = child as Mesh
                 if (Array.isArray(mesh.material)) {
                     mesh.material.forEach(mat => {
-                        mat.color = new Color(color)
-                        mat.needsUpdate = true
-                    })
+                        if (isColorMaterial(mat)) {
+                            mat.color = new Color(color);
+                            mat.needsUpdate = true;
+                        }
+                    });
                 } else {
-                    mesh.material.color = new Color(color)
-                    mesh.material.needsUpdate = true
+                    if (isColorMaterial(mesh.material)) {
+                        mesh.material.color = new Color(color);
+                        mesh.material.needsUpdate = true;
+                    }
                 }
             }
         })
     }, [color, scaledClothingScene])
 
     // 3. Initialize cloth physics with scaled clothing
-    // In your useCloth hook
     const { clothParticles } = useCloth({
         model: scaledClothingScene,
         bodyModel: avatarScene,
         options: {
-            segments: 24, // Higher density for better fit
-            stiffness: 0.8, // Softer cloth drapes better
-            bodyCollisionPadding: 0.03, // Extra space around body
-            femaleBody: detectFemaleBody(avatarScene) // Pass gender detection
+            segments: 20,
+            stiffness: 0.85, // Slightly reduced stiffness for better draping
+            collisionMargin: 0.02, // Added margin for better coverage
+            bodyInfluence: 0.3 // How much the body affects the cloth
         }
     });
 
@@ -113,38 +117,27 @@ export function ClothPhysics({ clothingScene, avatarScene, color }: ClothPhysics
     }))
 
     // 6. Animation frame for cloth simulation
-    // Add this to your useFrame loop
     useFrame(() => {
-        if (!scaledClothingScene || !avatarScene) return;
+        if (!groupRef.current || !clothReady || !scaledClothingScene || !clothParticles.current) return
 
         scaledClothingScene.traverse((child) => {
-            if ((child as Mesh).isMesh) {
-                const mesh = child as Mesh;
-                const geometry = mesh.geometry as BufferGeometry;
-                const positionAttribute = geometry.attributes.position;
+            const mesh = child as Mesh
+            if (mesh.isMesh) {
+                const geometry = mesh.geometry as BufferGeometry
+                const positionAttribute = geometry.attributes.position as BufferAttribute
 
-                // Get body vertices (simplified example)
-                const bodyVertices = getBodyVertices(avatarScene);
-
-                for (let i = 0; i < positionAttribute.count; i++) {
-                    const vertex = new Vector3().fromBufferAttribute(positionAttribute, i);
-
-                    // Push cloth vertices away from body
-                    bodyVertices.forEach(bodyVertex => {
-                        const distance = vertex.distanceTo(bodyVertex);
-                        if (distance < 0.05) { // If too close to body
-                            const direction = vertex.clone().sub(bodyVertex).normalize();
-                            vertex.add(direction.multiplyScalar(0.05 - distance));
-                        }
-                    });
-
-                    positionAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
+                for (let i = 0; i < Math.min(clothParticles.current.length, positionAttribute.count); i++) {
+                    const particle = clothParticles.current[i]
+                    if (particle) {
+                        positionAttribute.setXYZ(i, particle.x, particle.y, particle.z)
+                    }
                 }
 
-                positionAttribute.needsUpdate = true;
+                positionAttribute.needsUpdate = true
+                geometry.computeVertexNormals()
             }
-        });
-    });
+        })
+    })
 
     useEffect(() => {
         if (clothParticles.current && clothParticles.current.length > 0) {
