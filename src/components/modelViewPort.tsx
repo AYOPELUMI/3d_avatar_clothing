@@ -4,7 +4,7 @@ import { OrbitControls, Environment } from "@react-three/drei";
 import { Box, Typography, type SxProps, type Theme } from "@mui/material";
 import { Physics } from '@react-three/cannon';
 import { AvatarModel } from "./avatarModel";
-import { ClothingModel } from "./ClothingModel";
+import { ClothingModel } from "./clothingModellothingModel";
 
 interface ModelViewportProps {
     avatarUrl: string | null;
