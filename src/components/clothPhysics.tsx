@@ -4,6 +4,7 @@ import { Group, Object3D, Mesh, Color, BufferGeometry, Vector3, Box3 } from 'thr
 import { useBox, usePlane } from '@react-three/cannon'
 import { useCloth } from '../hooks/useCloth'
 import { detectFemaleBody } from '../hooks/detectFemaleBody'
+import { getBodyVertices } from '../hooks/getBodyVertice'
 
 interface ClothPhysicsProps {
     clothingScene: Object3D
@@ -22,7 +23,7 @@ export function ClothPhysics({ clothingScene, avatarScene, color }: ClothPhysics
         waist: 1.0,
         length: 1.02 // Default slightly longer
     })
-    // In your ClothPhysics component
+
     const scaledClothingScene = useMemo(() => {
         if (!clothingScene || !avatarScene) return null;
 
@@ -40,7 +41,7 @@ export function ClothPhysics({ clothingScene, avatarScene, color }: ClothPhysics
         // Detect female body proportions
         const isFemale = detectFemaleBody(avatarScene); // Implementation below
 
-
+        // Apply automatic gender-aware scaling
         clone.traverse((child) => {
             if (child.isMesh) {
                 let areaScale = 1.0;
@@ -71,7 +72,7 @@ export function ClothPhysics({ clothingScene, avatarScene, color }: ClothPhysics
         clone.position.y = avatarFeetY - clothingFeetY + 0.05; // Increased lift
 
         return clone;
-    }, [clothingScene, avatarScene]);// Add fitSettings to dependencies
+    }, [clothingScene, avatarScene]);
 
     // 2. Apply color to clothing material
     useEffect(() => {
@@ -94,14 +95,15 @@ export function ClothPhysics({ clothingScene, avatarScene, color }: ClothPhysics
     }, [color, scaledClothingScene])
 
     // 3. Initialize cloth physics with scaled clothing
+    // In your useCloth hook
     const { clothParticles } = useCloth({
         model: scaledClothingScene,
         bodyModel: avatarScene,
         options: {
-            segments: 20,
-            stiffness: 0.85, // Slightly reduced stiffness for better draping
-            collisionMargin: 0.02, // Added margin for better coverage
-            bodyInfluence: 0.3 // How much the body affects the cloth
+            segments: 24, // Higher density for better fit
+            stiffness: 0.8, // Softer cloth drapes better
+            bodyCollisionPadding: 0.03, // Extra space around body
+            femaleBody: detectFemaleBody(avatarScene) // Pass gender detection
         }
     });
 
@@ -119,27 +121,38 @@ export function ClothPhysics({ clothingScene, avatarScene, color }: ClothPhysics
     }))
 
     // 6. Animation frame for cloth simulation
+    // Add this to your useFrame loop
     useFrame(() => {
-        if (!groupRef.current || !clothReady || !scaledClothingScene || !clothParticles.current) return
+        if (!scaledClothingScene || !avatarScene) return;
 
         scaledClothingScene.traverse((child) => {
-            const mesh = child as Mesh
-            if (mesh.isMesh) {
-                const geometry = mesh.geometry as BufferGeometry
-                const positionAttribute = geometry.attributes.position
+            if ((child as Mesh).isMesh) {
+                const mesh = child as Mesh;
+                const geometry = mesh.geometry as BufferGeometry;
+                const positionAttribute = geometry.attributes.position;
 
-                for (let i = 0; i < Math.min(clothParticles.current.length, positionAttribute.count); i++) {
-                    const particle = clothParticles.current[i]
-                    if (particle) {
-                        positionAttribute.setXYZ(i, particle.x, particle.y, particle.z)
-                    }
+                // Get body vertices (simplified example)
+                const bodyVertices = getBodyVertices(avatarScene);
+
+                for (let i = 0; i < positionAttribute.count; i++) {
+                    const vertex = new Vector3().fromBufferAttribute(positionAttribute, i);
+
+                    // Push cloth vertices away from body
+                    bodyVertices.forEach(bodyVertex => {
+                        const distance = vertex.distanceTo(bodyVertex);
+                        if (distance < 0.05) { // If too close to body
+                            const direction = vertex.clone().sub(bodyVertex).normalize();
+                            vertex.add(direction.multiplyScalar(0.05 - distance));
+                        }
+                    });
+
+                    positionAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
                 }
 
-                positionAttribute.needsUpdate = true
-                geometry.computeVertexNormals()
+                positionAttribute.needsUpdate = true;
             }
-        })
-    })
+        });
+    });
 
     useEffect(() => {
         if (clothParticles.current && clothParticles.current.length > 0) {
