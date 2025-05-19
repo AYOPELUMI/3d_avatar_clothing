@@ -1,6 +1,5 @@
 // types.ts
-import type { Object3D, Mesh, BufferGeometry, Vector3 } from 'three';
-import type { PublicApi } from '@react-three/cannon';
+import type { Object3D, Mesh, Vector3 } from 'three';
 
 export interface ClothOptions {
     width: number;
@@ -8,10 +7,6 @@ export interface ClothOptions {
     segments: number;
     stiffness: number;
     restLength?: number;
-}
-
-export interface ParticleApi extends PublicApi {
-    position: { set: (x: number, y: number, z: number) => void };
 }
 
 export interface ClothModel extends Object3D {
