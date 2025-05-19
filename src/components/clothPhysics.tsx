@@ -14,15 +14,7 @@ interface ClothPhysicsProps {
 
 export function ClothPhysics({ clothingScene, avatarScene, color }: ClothPhysicsProps) {
     const groupRef = useRef<Group>(null)
-    const [clothReady, setClothReady] = useState(false)
-    const scaledClothing = useRef<Object3D | null>(null)
 
-    const [fitSettings, setFitSettings] = useState({
-        chest: 1.0,
-        arms: 1.05,  // Default slightly larger for arms
-        waist: 1.0,
-        length: 1.02 // Default slightly longer
-    })
 
     const scaledClothingScene = useMemo(() => {
         if (!clothingScene || !avatarScene) return null;
