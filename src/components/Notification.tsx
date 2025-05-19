@@ -20,7 +20,7 @@ export function Notification({ open, message, severity, onClose }: NotificationP
             sx={{
                 mb: { xs: 1, sm: 2 },
                 width: { xs: "90%", sm: "auto" },
-                left: { xs: "5%", sm: "auto" },
+                left: { xs: "5%", sm: "12%" },
             }}
         >
             <Alert onClose={onClose} severity={severity} sx={{ width: "100%" }}>

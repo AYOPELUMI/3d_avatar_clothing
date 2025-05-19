@@ -8,6 +8,7 @@ interface FileUploadButtonProps {
   acceptedFileTypes: string[];
   label: string;
   success: boolean;
+  disabled: Boolean;
   color: "primary" | "secondary";
 }
 
@@ -16,6 +17,7 @@ export function FileUploadButton({
   isLoading,
   label,
   success,
+  disabled,
   color,
 }: FileUploadButtonProps) {
   const theme = useTheme();
@@ -25,7 +27,7 @@ export function FileUploadButton({
       "model/gltf+json": [".gltf"],
     },
     onDrop: onUpload,
-    disabled: isLoading,
+    disabled: isLoading || Boolean(disabled), // Convert to primitive boolean
   });
 
   return (
@@ -33,26 +35,38 @@ export function FileUploadButton({
       {...getRootProps()}
       sx={{
         border: `2px dashed`,
-        borderColor: success ? theme.palette.success.main : theme.palette[color].main,
+        borderColor: success
+          ? theme.palette.success.main
+          : disabled
+            ? theme.palette.action.disabled
+            : theme.palette[color].main,
         borderRadius: 1,
         p: { xs: '4px', sm: 1 },
         textAlign: "center",
-        cursor: isLoading ? "wait" : "pointer",
-        bgcolor: success ? theme.palette.success.light : theme.palette[color].light,
-        color: "white",
-        opacity: isLoading ? 0.7 : 1,
+        cursor: (isLoading || disabled) ? "default" : "pointer",
+        bgcolor: success
+          ? theme.palette.success.light
+          : disabled
+            ? theme.palette.action.disabledBackground
+            : theme.palette[color].light,
+        color: disabled ? theme.palette.text.disabled : "white",
+        opacity: (isLoading || disabled) ? 0.7 : 1,
         transition: "all 0.3s ease",
-        minHeight: { xs: '40px', sm: '100px' }, // Increased min-height for better drop area
-        width: '100%', // Ensure full width
+        minHeight: { xs: '40px', sm: '100px' },
+        width: '100%',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: "center",
         position: 'relative',
         "&:hover": {
-          opacity: isLoading ? 0.7 : 0.9,
+          opacity: (isLoading || disabled) ? 0.7 : 0.9,
+          bgcolor: (isLoading || disabled)
+            ? undefined
+            : success
+              ? theme.palette.success.light
+              : theme.palette[color].light,
         },
-        // Explicit dropzone area styling
         '&:focus-visible, &:focus': {
           outline: 'none',
         },
@@ -60,6 +74,7 @@ export function FileUploadButton({
     >
       <input
         {...getInputProps()}
+        disabled={Boolean(disabled) || isLoading} // Convert disabled to primitive boolean
         style={{
           position: 'absolute',
           top: 0,
@@ -67,11 +82,11 @@ export function FileUploadButton({
           width: '100%',
           height: '100%',
           opacity: 0,
-          cursor: 'pointer',
+          cursor: (isLoading || disabled) ? 'default' : 'pointer',
         }}
       />
       <Box sx={{
-        pointerEvents: 'none', // Make content non-interactive so clicks pass through
+        pointerEvents: 'none',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -86,7 +101,8 @@ export function FileUploadButton({
           <CloudUpload sx={{
             display: { xs: 'none', sm: 'block' },
             fontSize: 40,
-            mb: 1
+            mb: 1,
+            color: disabled ? theme.palette.text.disabled : "inherit",
           }} />
         )}
         <Typography
@@ -94,16 +110,19 @@ export function FileUploadButton({
           sx={{
             fontSize: { xs: '0.7rem', sm: '0.7rem' },
             lineHeight: { xs: 1, sm: 1.5 },
-            px: { xs: 0.5, sm: 0 }
+            px: { xs: 0.5, sm: 0 },
+            color: disabled ? theme.palette.text.disabled : "inherit",
           }}
         >
           {isLoading
             ? "Processing..."
             : isDragActive
               ? "Drop file here"
-              : success
-                ? `${label} Uploaded! Tap to replace`
-                : `Tap to upload ${label}`}
+              : disabled
+                ? "Upload disabled"
+                : success
+                  ? `${label} Uploaded! Tap to replace`
+                  : `Tap to upload ${label}`}
         </Typography>
       </Box>
     </Box>

@@ -80,8 +80,10 @@ export function ControlsPanel({
                     label="Avatar"
                     success={!!avatarUrl}
                     color="primary"
+                    disabled={false}
                 />
                 <FileUploadButton
+                    disabled={!avatarUrl}
                     onUpload={onClothingUpload}
                     isLoading={isLoading && !clothingUrl}
                     acceptedFileTypes={[".glb", ".gltf"]}
